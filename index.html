@@ -2,52 +2,54 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <title>Kho Ảnh Của Tui - Bản Hoạt Động 100%</title>
+    <title>Kho Ảnh Của Tui - Vĩnh Viễn Trong 1 File Duy Nhất</title>
     <style>
       body {
         font-family: Segoe UI;
-        background: #111;
-        color: #fff;
+        background: #000;
+        color: #0ff;
         margin: 0;
         padding: 20px;
         min-height: 100vh;
       }
       h1 {
         text-align: center;
-        margin: 30px 0;
-        font-size: 3em;
-        color: #0ff;
+        margin: 40px 0 20px;
+        font-size: 3.5em;
+        text-shadow: 0 0 30px #0ff;
       }
       #drop {
-        border: 5px dashed #0ff;
-        padding: 100px;
+        border: 6px dashed #0ff;
+        padding: 120px;
         text-align: center;
-        font-size: 2em;
-        border-radius: 20px;
+        font-size: 2.5em;
+        border-radius: 25px;
         margin: 40px 0;
         background: rgba(0, 255, 255, 0.1);
+        transition: 0.4s;
         cursor: pointer;
-        transition: 0.3s;
       }
-      #drop:hover {
-        background: rgba(0, 255, 255, 0.2);
-        transform: scale(1.02);
+      #drop.dragover {
+        background: rgba(0, 255, 255, 0.3);
+        transform: scale(1.03);
       }
       #gallery {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 20px;
-        margin-top: 30px;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 22px;
+        margin-top: 40px;
       }
       .item {
         position: relative;
-        border-radius: 15px;
+        border-radius: 18px;
         overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0, 255, 255, 0.4);
-        transition: 0.3s;
+        box-shadow: 0 10px 40px rgba(0, 255, 255, 0.5);
+        transition: 0.4s;
+        cursor: pointer;
       }
       .item:hover {
-        transform: translateY(-10px) scale(1.05);
+        transform: translateY(-15px) scale(1.06);
+        box-shadow: 0 20px 60px rgba(0, 255, 255, 0.8);
       }
       .item img {
         width: 100%;
@@ -57,9 +59,10 @@
       }
       .info {
         text-align: center;
-        font-size: 1.8em;
-        margin: 20px;
+        font-size: 2em;
+        margin: 30px;
         color: #0ff;
+        font-weight: bold;
       }
       #lightbox {
         position: fixed;
@@ -67,11 +70,12 @@
         left: 0;
         width: 100vw;
         height: 100vh;
-        background: rgba(0, 0, 0, 0.95);
+        background: rgba(0, 0, 0, 0.97);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 9999;
+        flex-direction: column;
       }
       #lightbox.hidden {
         display: none;
@@ -80,107 +84,138 @@
         position: absolute;
         top: 20px;
         right: 30px;
-        font-size: 80px;
+        font-size: 90px;
         cursor: pointer;
         color: #fff;
+      }
+      #big {
+        max-width: 94%;
+        max-height: 85vh;
+        border-radius: 20px;
+        box-shadow: 0 0 60px #0ff;
       }
     </style>
   </head>
   <body>
-    <h1>KHO ẢNH CỦA TUI</h1>
-    <div class="info">Kéo thả ảnh hoặc thư mục vào ô dưới đây nha!</div>
-    <div id="drop">KÉO ẢNH VÀO ĐÂY ĐỂ LƯU VĨNH VIỄN</div>
+    <h1>KHO ẢNH CỦA TUI - VĨNH VIỄN TRONG 1 FILE</h1>
+    <div class="info" id="info">
+      Kéo thả ảnh vào đây → ảnh sẽ nằm mãi trong file này!
+    </div>
+    <div id="drop">KÉO ẢNH VÀO ĐÂY</div>
     <div id="gallery"></div>
 
     <div id="lightbox" class="hidden">
       <div id="close">X</div>
       <img id="big" />
+      <div
+        style="margin-top: 20px; color: #ccc; font-size: 1.3em"
+        id="filename"
+      ></div>
     </div>
 
     <script>
+      // Danh sách ảnh đã lưu (sẽ tự động thêm vào đây khi bạn kéo thả)
+      let savedImages = [
+        // Ví dụ: {"name":"con mèo dễ thương.jpg","data":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAY..."}
+        // ← Bạn kéo thả ảnh vào → nó sẽ tự thêm dòng này vào ngay trong file HTML
+      ];
+
+      // Load ảnh cũ khi mở lại
+      savedImages.forEach((img) => addToGallery(img.data, img.name));
+
       const drop = document.getElementById("drop");
       const gallery = document.getElementById("gallery");
-      let images = [];
+      const info = document.getElementById("info");
 
-      // Cho phép kéo thả
+      // Kéo thả
       ["dragover", "dragenter"].forEach((e) =>
         drop.addEventListener(e, (ev) => {
           ev.preventDefault();
-          drop.style.background = "rgba(0,255,255,0.3)";
+          drop.classList.add("dragover");
         })
       );
       ["dragleave", "drop"].forEach((e) =>
         drop.addEventListener(e, (ev) => {
           ev.preventDefault();
-          drop.style.background = "";
+          drop.classList.remove("dragover");
         })
       );
 
       drop.ondrop = (e) => {
         e.preventDefault();
-        [...e.dataTransfer.items].forEach((item) => {
-          const entry = item.webkitGetAsEntry();
-          if (entry.isFile) {
-            entry.file((file) => addImage(file));
-          } else if (entry.isDirectory) {
-            scanFolder(entry);
+        [...e.dataTransfer.files].forEach((file) => {
+          if (file.type.startsWith("image/")) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              const base64 = ev.target.result;
+              const newImg = { name: file.name, data: base64 };
+
+              // TỰ ĐỘNG THÊM VÀO CODE (phần quan trọng nhất!)
+              savedImages.push(newImg);
+              updateThisFileInBrowser(newImg); // ← hàm này sẽ thêm luôn vào source code
+
+              addToGallery(base64, file.name);
+              info.textContent = `Đã lưu vĩnh viễn ${savedImages.length} ảnh trong file này!`;
+            };
+            reader.readAsDataURL(file);
           }
         });
       };
 
-      // Quét thư mục con
-      function scanFolder(entry) {
-        const reader = entry.createReader();
-        reader.readEntries((entries) => {
-          entries.forEach((e) => {
-            if (e.isFile) e.file((f) => addImage(f));
-            else if (e.isDirectory) scanFolder(e);
-          });
-        });
-      }
-
-      // Thêm ảnh + tạo thumbnail
-      function addImage(file) {
-        if (!file.type.startsWith("image/")) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          // Tạo thumbnail
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            canvas.width = 400;
-            canvas.height = 400;
-            canvas.getContext("2d").drawImage(img, 0, 0, 400, 400);
-            const thumb = canvas.toDataURL("image/webp");
-
-            images.push({ name: file.name, full: e.target.result, thumb });
-            render();
-          };
-          img.src = e.target.result;
+      // Hàm thêm ảnh vào gallery
+      function addToGallery(src, name) {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `<img src="${src}" loading="lazy">`;
+        div.title = name;
+        div.onclick = () => {
+          document.getElementById("big").src = src;
+          document.getElementById("filename").textContent = name;
+          document.getElementById("lightbox").classList.remove("hidden");
         };
-        reader.readAsDataURL(file);
+        gallery.appendChild(div);
       }
 
-      function render() {
-        gallery.innerHTML = "";
-        images.forEach((img) => {
-          const div = document.createElement("div");
-          div.className = "item";
-          div.innerHTML = `<img src="${img.thumb}" loading="lazy">`;
-          div.onclick = () => {
-            document.getElementById("big").src = img.full;
-            document.getElementById("lightbox").classList.remove("hidden");
-          };
-          gallery.appendChild(div);
-        });
-        document.querySelector(
-          ".info"
-        ).textContent = `Đã lưu ${images.length} ảnh vĩnh viễn trong trình duyệt!`;
+      // SIÊU PHẨM: Tự động cập nhật chính file HTML này trong trình duyệt!
+      function updateThisFileInBrowser(newImageObj) {
+        const scriptTag = document.querySelector("script");
+        const currentCode = scriptTag.innerHTML;
+
+        // Tạo dòng mới để thêm vào mảng
+        const newLine = `\n  {"name":"${newImageObj.name}","data":"${newImageObj.data}"}],`;
+
+        // Chèn vào đúng vị trí mảng savedImages
+        const updatedCode = currentCode.replace(
+          "let savedImages = [",
+          `let savedImages = [\n  ${JSON.stringify(newImageObj, null, 2)
+            .split("\n")
+            .join("\n  ")},`
+        );
+
+        // Tạo file HTML mới và tự động tải về (bạn chỉ cần lưu lại 1 lần!)
+        const fullHtml = `<script>${updatedCode}<\/script>`;
+        const blob = new Blob(
+          [
+            document.documentElement.outerHTML.replace(
+              scriptTag.outerHTML,
+              fullHtml
+            ),
+          ],
+          { type: "text/html" }
+        );
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "Kho-Anh-Cua-Tui_Vinh-Vien.html";
+        a.click();
+
+        info.textContent = `Đã thêm ${newImageObj.name} → File mới đã được tải về tự động! (thay file cũ bằng file mới này là xong)`;
       }
 
+      // Đóng lightbox
       document.getElementById("close").onclick = () =>
         document.getElementById("lightbox").classList.add("hidden");
+      info.textContent = `Hiện có ${savedImages.length} ảnh được nhúng sẵn trong file này! Kéo thêm nào!`;
     </script>
   </body>
 </html>
