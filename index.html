@@ -2,7 +2,7 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <title>Kho Ảnh Của Tui - Vĩnh Viễn Trong 1 File Duy Nhất</title>
+    <title>Kho Ảnh Của Tui - Có Sẵn Thư Mục images</title>
     <style>
       body {
         font-family: Segoe UI;
@@ -74,8 +74,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 9999;
         flex-direction: column;
+        z-index: 9999;
       }
       #lightbox.hidden {
         display: none;
@@ -97,11 +97,12 @@
     </style>
   </head>
   <body>
-    <h1>KHO ẢNH CỦA TUI - VĨNH VIỄN TRONG 1 FILE</h1>
+    <h1>KHO ẢNH CỦA TUI</h1>
     <div class="info" id="info">
-      Kéo thả ảnh vào đây → ảnh sẽ nằm mãi trong file này!
+      Thư mục images đã sẵn sàng! Kéo ảnh vào đây hoặc tự thêm vào code cũng
+      được!
     </div>
-    <div id="drop">KÉO ẢNH VÀO ĐÂY</div>
+    <div id="drop">KÉO ẢNH MỚI VÀO ĐÂY ĐỂ THÊM VÀO KHO</div>
     <div id="gallery"></div>
 
     <div id="lightbox" class="hidden">
@@ -114,20 +115,84 @@
     </div>
 
     <script>
-      // Danh sách ảnh đã lưu (sẽ tự động thêm vào đây khi bạn kéo thả)
-      let savedImages = [
-        // Ví dụ: {"name":"con mèo dễ thương.jpg","data":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAY..."}
-        // ← Bạn kéo thả ảnh vào → nó sẽ tự thêm dòng này vào ngay trong file HTML
+      // ================================
+      // KHO ẢNH ẢO CÓ SẴN - BẠN CHỈ CẦN THÊM DÒNG MỚI VÀO ĐÂY
+      // ================================
+      const builtinImages = [
+        // Ví dụ cách thêm ảnh (bạn chỉ cần copy-paste dòng này):
+        // {name: "mèo con.jpg", base64: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ..."},
+
+        // === BẠN THÊM ẢNH CỦA BẠN TẠI ĐÂY ===
+        // Copy 1 trong 2 cách dưới đây để thêm ảnh:
+
+        // Cách 1: Dán link ảnh online (dễ nhất)
+        {
+          name: "Ảnh mẫu 1 - mèo con",
+          base64:
+            "images/Ảnh Của Thuận/z4398475698111_2f885cedf4d07cf4834021fbe872c86d.jpg",
+        },
+        {
+          name: "Ảnh mẫu 2 - phong cảnh",
+          base64:
+            "images/Ảnh Của Thuận/z4398477975806_9b3397e1d269d6cd11df4918412a15e0.jpg",
+        },
+        {
+          name: "Ảnh mẫu 3 - hoa",
+          base64: "images/Ảnh Của Thuận/BGIX4072.JPEG",
+        },
+
+        // Cách 2: Dán base64 thật (nếu bạn muốn ảnh nằm 100% trong file)
+        // {name: "tên ảnh.jpg", base64: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD..."}
       ];
 
-      // Load ảnh cũ khi mở lại
-      savedImages.forEach((img) => addToGallery(img.data, img.name));
+      // Load ảnh có sẵn + ảnh đã lưu trước đó
+      let db;
+      const request = indexedDB.open("KhoAnhCuaTui_2025", 1);
+      request.onupgradeneeded = (e) => {
+        db = e.target.result;
+        db.createObjectStore("images", { keyPath: "id", autoIncrement: true });
+      };
+      request.onsuccess = (e) => {
+        db = e.target.result;
+        loadAll();
+      };
 
+      async function loadAll() {
+        // 1. Load ảnh có sẵn trong code
+        builtinImages.forEach((img) => addToGallery(img.base64, img.name));
+
+        // 2. Load ảnh đã lưu trước đó (kéo thả)
+        const tx = db.transaction("images", "readonly");
+        const store = tx.objectStore("images");
+        const req = store.getAll();
+        req.onsuccess = () => {
+          req.result.forEach((i) =>
+            addToGallery(URL.createObjectURL(i.blob), i.name)
+          );
+          document.getElementById(
+            "info"
+          ).textContent = `Kho đã sẵn sàng! Tổng ${
+            document.querySelectorAll(".item").length
+          } ảnh`;
+        };
+      }
+
+      // Thêm vào gallery
+      function addToGallery(src, name) {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `<img src="${src}" loading="lazy">`;
+        div.title = name;
+        div.onclick = () => {
+          document.getElementById("big").src = src;
+          document.getElementById("filename").textContent = name;
+          document.getElementById("lightbox").classList.remove("hidden");
+        };
+        document.getElementById("gallery").appendChild(div);
+      }
+
+      // Kéo thả ảnh mới → lưu vĩnh viễn
       const drop = document.getElementById("drop");
-      const gallery = document.getElementById("gallery");
-      const info = document.getElementById("info");
-
-      // Kéo thả
       ["dragover", "dragenter"].forEach((e) =>
         drop.addEventListener(e, (ev) => {
           ev.preventDefault();
@@ -147,75 +212,40 @@
           if (file.type.startsWith("image/")) {
             const reader = new FileReader();
             reader.onload = (ev) => {
-              const base64 = ev.target.result;
-              const newImg = { name: file.name, data: base64 };
-
-              // TỰ ĐỘNG THÊM VÀO CODE (phần quan trọng nhất!)
-              savedImages.push(newImg);
-              updateThisFileInBrowser(newImg); // ← hàm này sẽ thêm luôn vào source code
-
-              addToGallery(base64, file.name);
-              info.textContent = `Đã lưu vĩnh viễn ${savedImages.length} ảnh trong file này!`;
+              const blob = new Blob([ev.target.result], { type: file.type });
+              db.transaction("images", "readwrite")
+                .objectStore("images")
+                .add({ blob, name: file.name });
+              addToGallery(URL.createObjectURL(blob), file.name);
             };
-            reader.readAsDataURL(file);
+            reader.readAsArrayBuffer(file);
           }
         });
       };
 
-      // Hàm thêm ảnh vào gallery
-      function addToGallery(src, name) {
-        const div = document.createElement("div");
-        div.className = "item";
-        div.innerHTML = `<img src="${src}" loading="lazy">`;
-        div.title = name;
-        div.onclick = () => {
-          document.getElementById("big").src = src;
-          document.getElementById("filename").textContent = name;
-          document.getElementById("lightbox").classList.remove("hidden");
-        };
-        gallery.appendChild(div);
-      }
+      // Click để chọn ảnh
+      drop.onclick = () => {
+        const i = document.createElement("input");
+        i.type = "file";
+        i.multiple = true;
+        i.accept = "image/*";
+        i.onchange = () =>
+          [...i.files].forEach((f) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              const blob = new Blob([ev.target.result], { type: f.type });
+              db.transaction("images", "readwrite")
+                .objectStore("images")
+                .add({ blob, name: f.name });
+              addToGallery(URL.createObjectURL(blob), f.name);
+            };
+            reader.readAsArrayBuffer(f);
+          });
+        i.click();
+      };
 
-      // SIÊU PHẨM: Tự động cập nhật chính file HTML này trong trình duyệt!
-      function updateThisFileInBrowser(newImageObj) {
-        const scriptTag = document.querySelector("script");
-        const currentCode = scriptTag.innerHTML;
-
-        // Tạo dòng mới để thêm vào mảng
-        const newLine = `\n  {"name":"${newImageObj.name}","data":"${newImageObj.data}"}],`;
-
-        // Chèn vào đúng vị trí mảng savedImages
-        const updatedCode = currentCode.replace(
-          "let savedImages = [",
-          `let savedImages = [\n  ${JSON.stringify(newImageObj, null, 2)
-            .split("\n")
-            .join("\n  ")},`
-        );
-
-        // Tạo file HTML mới và tự động tải về (bạn chỉ cần lưu lại 1 lần!)
-        const fullHtml = `<script>${updatedCode}<\/script>`;
-        const blob = new Blob(
-          [
-            document.documentElement.outerHTML.replace(
-              scriptTag.outerHTML,
-              fullHtml
-            ),
-          ],
-          { type: "text/html" }
-        );
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "Kho-Anh-Cua-Tui_Vinh-Vien.html";
-        a.click();
-
-        info.textContent = `Đã thêm ${newImageObj.name} → File mới đã được tải về tự động! (thay file cũ bằng file mới này là xong)`;
-      }
-
-      // Đóng lightbox
       document.getElementById("close").onclick = () =>
         document.getElementById("lightbox").classList.add("hidden");
-      info.textContent = `Hiện có ${savedImages.length} ảnh được nhúng sẵn trong file này! Kéo thêm nào!`;
     </script>
   </body>
 </html>
